@@ -27,7 +27,7 @@ const TabsLayout = () => {
       <Tabs.Screen
         name='index'
         options={{
-          title:"SMS reader",
+          title:"Todos",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name='flash-outline' size={size} color={color} />
           )
