@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Todos_app",
-    "slug": "Todos_app",
+    "name": "SMS Reader",
+    "slug": "sms-reader",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,36 +13,25 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#E6F4FE"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "permissions": [
+        "READ_SMS",
+        "READ_CONTACTS"
+      ],
+      "package": "com.aurele.smsreader"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "aa0f717e-5932-4e4f-a392-e04b77856e1e"
+      }
     }
   }
 }

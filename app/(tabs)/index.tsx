@@ -1,182 +1,178 @@
-import { createHomeStyles } from "@/assets/styles/home.styles";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import useTheme, { ColorScheme } from "@/hooks/useTheme";
-import { StatusBar, TouchableOpacity, Text, View, FlatList, Alert, TextInput } from "react-native";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import Header from "../components/Header";
-import TodoInput from "../components/TodoInput";
-import LoadingSpinner from "../components/LoadingSpinner";
-import { Doc, Id } from "@/convex/_generated/dataModel";
-import { Ionicons } from "@expo/vector-icons";
-import { toggleTodo, updateTodo } from "@/convex/todos";
-import EmptyState from "../components/EmptyState";
-import { useState } from "react";
-
-type Todo = Doc<"todos">
+import { View, Text, StyleSheet, TouchableOpacity, Alert, PermissionsAndroid, Platform, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import useTheme from '@/hooks/useTheme';
+import { StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import { getAllSMS, SMS } from '@/utils/smsReader';
 
 export default function Index() {
   const { colors } = useTheme();
+  const [hasPermission, setHasPermission] = useState(false);
+  const [messages, setMessages] = useState<SMS[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [editingId, setEditingId] = useState<Id<"todos"> | null>(null);
-  const [editText, setEditText] = useState("");
+  const requestSMSPermission = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Erreur', 'Disponible uniquement sur Android');
+      return;
+    }
 
-  const homeStyles = createHomeStyles(colors);
-
-  const todos = useQuery(api.todos.getTodos);
-  const toggleTodo = useMutation(api.todos.toggleTodo);
-  const deleteTodo = useMutation(api.todos.deleteTodo);
-  const updateTodo = useMutation(api.todos.updateTodo);
-
-  const isLoading = todos === undefined;
-
-  if(isLoading) return <LoadingSpinner />;
-
-  const handleToggleTodo = async (id: Id<"todos">) => {
     try {
-      await toggleTodo({ id });
-    } catch (error) {
-      console.log("Error toggling todo", error);
-      Alert.alert("Error", "Failed to toggle todo");
-    }
-  };
-  
-  const handleDeleteTodo = async (id: Id<"todos">) => {
-    Alert.alert("Delete todo", "Are you sure you want to delete this ?", [
-      {text:"Cancel", style:"cancel"},
-      {text:"Delete", style:"destructive", onPress: () => deleteTodo({ id }) },
-    ])
-  };
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_SMS,
+        {
+          title: 'Permission SMS',
+          message: 'Cette application a besoin d\'accéder à vos SMS',
+          buttonPositive: 'Accepter',
+          buttonNegative: 'Refuser',
+        }
+      );
 
-  const handleEditTodo = (todo:Todo) => {
-setEditText(todo.text)
-setEditingId(todo._id)
-  }; 
-
-  const handleSaveEdit = async () => {
-    if(editingId) {
-      try {
-        await updateTodo({id: editingId, text:editText.trim()})
-        setEditingId(null)
-        setEditText("")
-      } catch (error) {
-        console.log("Error updating todo", error);
-        Alert.alert("Error", "Failed to update todo");
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        setHasPermission(true);
+        // Lire les SMS automatiquement après permission
+        loadSMS();
+      } else {
+        Alert.alert('Permission refusée', 'Vous devez autoriser l\'accès');
       }
+    } catch (err) {
+      console.error('Erreur:', err);
+      Alert.alert('Erreur', String(err));
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditText("");
+  const loadSMS = async () => {
+    setIsLoading(true);
+    try {
+      const sms = await getAllSMS();
+      setMessages(sms);
+      Alert.alert('Succès !', `${sms.length} SMS chargés !`);
+    } catch (error) {
+      console.error('Erreur chargement SMS:', error);
+      Alert.alert('Erreur', 'Impossible de charger les SMS');
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const renderTodoItem = ({item}: {item:Todo}) => {
-    const isEditing = editingId === item._id
-    return (
-      <View style={homeStyles.todoItemWrapper}>
-        <LinearGradient colors={colors.gradients.surface}
-          style={homeStyles.todoItem}
-          start={{ x: 0, y: 0}}
-          end={{ x: 1, y: 1}}
-          >
-            <TouchableOpacity
-              style={homeStyles.checkbox}
-              activeOpacity={0.7}
-              onPress={() => handleToggleTodo(item._id)}
-            >
-              <LinearGradient
-                colors={item.isCompleted ? colors.gradients.success : colors.gradients.muted}
-                style={[
-                  homeStyles.checkboxInner,
-                  { borderColor: item.isCompleted ? "transparent" : colors.border },
-                ]}
-              >
-                {item.isCompleted && <Ionicons name="checkmark" size={18} color="#fff" />}
-              </LinearGradient>
-            </TouchableOpacity>
-
-              {isEditing ? (
-                <View style={homeStyles.editContainer}>
-                  <TextInput 
-                    style={homeStyles.editInput}
-                    value={editText}
-                    onChangeText={setEditText}
-                    autoFocus
-                    // multiline
-                    placeholder="Edit your todo..."
-                    placeholderTextColor={colors.textMuted}
-                  />
-                  <View style={homeStyles.editButtons}>
-                    <TouchableOpacity onPress={handleSaveEdit} activeOpacity={0.8}>
-                      <LinearGradient colors={colors.gradients.success} style={homeStyles.editButton}>
-                        <Ionicons name="checkmark" size={16} color="#fff" />
-                        <Text style={homeStyles.editButtonText}>Save</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={handleCancelEdit} activeOpacity={0.8}>
-                      <LinearGradient colors={colors.gradients.muted} style={homeStyles.editButton}>
-                        <Ionicons name="close" size={16} color="#fff" />
-                        <Text style={homeStyles.editButtonText}>Cancel</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <View style={homeStyles.todoTextContainer}>
-                <Text
-                  style={[
-                    homeStyles.todoText,
-                    item.isCompleted && {
-                      textDecorationLine: "line-through",
-                      color: colors.textMuted,
-                      opacity: 0.6,
-                    },
-                  ]}
-                >
-                  {item.text}
-                </Text>
-
-              <View style={homeStyles.todoActions}>
-                <TouchableOpacity onPress={() => handleEditTodo(item)} activeOpacity={0.8}>
-                  <LinearGradient colors={colors.gradients.warning} style={homeStyles.actionButton}>
-                    <Ionicons name="pencil" size={14} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteTodo(item._id)} activeOpacity={0.8}>
-                  <LinearGradient colors={colors.gradients.danger} style={homeStyles.actionButton}>
-                    <Ionicons name="trash" size={14} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-              )}
-          </LinearGradient>
-      </View>
-    )
-  }
 
   return (
-    <LinearGradient colors={colors.gradients.background} style={homeStyles.container}>
+    <LinearGradient colors={colors.gradients.background} style={styles.container}>
       <StatusBar barStyle={colors.statusBarStyle} />
-      <SafeAreaView style={homeStyles.safeArea}>
-        <Header />
-
-        <TodoInput />
-
-        <FlatList
-          data={todos}
-          renderItem={renderTodoItem}
-          keyExtractor={(item) => item._id}
-          style={homeStyles.todoList}
-          contentContainerStyle={homeStyles.todoListContent}
-          ListEmptyComponent={<EmptyState />}
-          showsVerticalScrollIndicator={false}
-        />
-          
+      <SafeAreaView style={styles.safeArea}>
+        {!hasPermission ? (
+          <View style={styles.content}>
+            <Ionicons name="chatbubbles" size={80} color={colors.primary} />
+            <Text style={[styles.title, { color: colors.text }]}>SMS Reader</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+              Pour commencer, autorisez l'accès aux SMS
+            </Text>
+            <TouchableOpacity onPress={requestSMSPermission} activeOpacity={0.8}>
+              <LinearGradient colors={colors.gradients.primary} style={styles.button}>
+                <Ionicons name="lock-open" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Autoriser l'accès aux SMS</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.messagesContainer}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Vos SMS ({messages.length})
+            </Text>
+            
+            {isLoading ? (
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                Chargement...
+              </Text>
+            ) : (
+              <ScrollView style={styles.messagesList}>
+                {messages.map((msg) => (
+                  <View key={msg.id} style={[styles.messageItem, { borderColor: colors.border }]}>
+                    <Text style={[styles.messageAddress, { color: colors.primary }]}>
+                      {msg.address}
+                    </Text>
+                    <Text style={[styles.messageBody, { color: colors.text }]} numberOfLines={2}>
+                      {msg.body}
+                    </Text>
+                    <Text style={[styles.messageDate, { color: colors.textMuted }]}>
+                      {new Date(msg.date).toLocaleString()}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
       </SafeAreaView>
     </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 30,
+    paddingHorizontal: 20,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  messagesContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  messagesList: {
+    flex: 1,
+    marginTop: 20,
+  },
+  messageItem: {
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  messageAddress: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 5,
+  },
+  messageBody: {
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  messageDate: {
+    fontSize: 12,
+  },
+});

@@ -27,9 +27,9 @@ const TabsLayout = () => {
       <Tabs.Screen
         name='index'
         options={{
-          title:"Todos",
+          title:"Messages",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name='flash-outline' size={size} color={color} />
+            <Ionicons name='chatbubbles-outline' size={size} color={color} />
           )
         }}
       />
