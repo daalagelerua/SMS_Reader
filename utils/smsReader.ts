@@ -56,27 +56,55 @@ export interface Conversation {
   unreadCount: number;
 }
 
+// Fonction pour normaliser les numéros
+const normalizePhoneNumber = (number: string): string => {
+  // Enlève tout sauf les chiffres
+  let cleaned = number.replace(/\D/g, '');
+  
+  // Si commence par 0033, remplace par 33
+  if (cleaned.startsWith('0033')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Si commence par 00, enlève
+  if (cleaned.startsWith('00')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Si commence par 0 et pas 00, remplace par 33 (France)
+  if (cleaned.startsWith('0') && !cleaned.startsWith('00')) {
+    cleaned = '33' + cleaned.substring(1);
+  }
+  
+  return cleaned;
+};
+
 // Fonction pour organiser les SMS en conversations
 export const organizeByConversation = (
   messages: SMS[],
-  contacts: Contact[] = [] // ← AJOUTE CE PARAMÈTRE
+  contacts: Contact[] = []
 ): Conversation[] => {
-  const grouped: { [phoneNumber: string]: SMS[] } = {};
+  const grouped: { [normalizedNumber: string]: SMS[] } = {};
 
+  // Grouper par numéro normalisé
   messages.forEach((msg) => {
-    if (!grouped[msg.address]) {
-      grouped[msg.address] = [];
+    const normalized = normalizePhoneNumber(msg.address);
+    if (!grouped[normalized]) {
+      grouped[normalized] = [];
     }
-    grouped[msg.address].push(msg);
+    grouped[normalized].push(msg);
   });
 
-  const conversations: Conversation[] = Object.keys(grouped).map((phoneNumber) => {
-    const msgs = grouped[phoneNumber];
+  const conversations: Conversation[] = Object.keys(grouped).map((normalizedNumber) => {
+    const msgs = grouped[normalizedNumber];
     msgs.sort((a, b) => b.date - a.date);
 
+    // Utiliser l'adresse du message le plus récent comme phoneNumber d'affichage
+    const displayNumber = msgs[0].address;
+
     return {
-      phoneNumber,
-      contactName: findContactName(phoneNumber, contacts), // ← AJOUTE CETTE LIGNE
+      phoneNumber: displayNumber,
+      contactName: findContactName(normalizedNumber, contacts),
       messages: msgs,
       lastMessage: msgs[0],
       unreadCount: 0,
@@ -123,29 +151,6 @@ export const getAllContacts = async (): Promise<Contact[]> => {
     console.error('Erreur lecture contacts:', error);
     return [];
   }
-};
-
-// Fonction pour normaliser les numéros
-const normalizePhoneNumber = (number: string): string => {
-  // Enlève tout sauf les chiffres
-  let cleaned = number.replace(/\D/g, '');
-  
-  // Si commence par 0033, remplace par 33
-  if (cleaned.startsWith('0033')) {
-    cleaned = cleaned.substring(2);
-  }
-  
-  // Si commence par 00, enlève
-  if (cleaned.startsWith('00')) {
-    cleaned = cleaned.substring(2);
-  }
-  
-  // Si commence par 0 et pas 00, remplace par 33 (France)
-  if (cleaned.startsWith('0') && !cleaned.startsWith('00')) {
-    cleaned = '33' + cleaned.substring(1);
-  }
-  
-  return cleaned;
 };
 
 // Fonction pour trouver le nom d'un contact

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import useTheme from '@/hooks/useTheme';
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { getAllSMS, SMS, getAllContacts, findContactName } from '@/utils/smsReader';
+import { createConversationStyles } from '@/assets/styles/conversations.styles';
 
 // Type pour un item qui peut être un message ou un séparateur
 type ListItem = 
@@ -15,6 +16,7 @@ type ListItem =
 
 export default function ConversationScreen() {
   const { colors } = useTheme();
+  const conversationStyles = createConversationStyles(colors);
   const { phoneNumber } = useLocalSearchParams<{ phoneNumber: string }>();
   
   const [listItems, setListItems] = useState<ListItem[]>([]);
@@ -31,7 +33,7 @@ export default function ConversationScreen() {
       const conversationMessages = allSMS.filter(
         (msg) => msg.address === phoneNumber
       );
-      conversationMessages.sort((a, b) => a.date - b.date);
+      conversationMessages.sort((a, b) => b.date - a.date); // Plus récent en premier
 
       // Créer la liste avec séparateurs de date
       const items: ListItem[] = [];
@@ -44,13 +46,14 @@ export default function ConversationScreen() {
           year: 'numeric',
         });
 
-        // Si la date change, ajouter un séparateur
+        // Ajouter d'abord le message
+        items.push({ type: 'message', data: msg });
+
+        // Si la date change, ajouter un séparateur APRÈS
         if (msgDate !== lastDate) {
           items.push({ type: 'separator', date: msgDate });
           lastDate = msgDate;
         }
-
-        items.push({ type: 'message', data: msg });
       });
 
       setListItems(items);
@@ -69,12 +72,12 @@ export default function ConversationScreen() {
   const renderItem = ({ item }: { item: ListItem }) => {
     if (item.type === 'separator') {
       return (
-        <View style={styles.dateSeparator}>
-          <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
-          <Text style={[styles.dateText, { color: colors.textMuted }]}>
+        <View style={conversationStyles.dateSeparator}>
+          <View style={conversationStyles.separatorLine} />
+          <Text style={conversationStyles.dateText}>
             {item.date}
           </Text>
-          <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+          <View style={conversationStyles.separatorLine} />
         </View>
       );
     }
@@ -85,15 +88,18 @@ export default function ConversationScreen() {
 
     return (
       <View style={[
-        styles.messageContainer,
-        isSent ? styles.sentContainer : styles.receivedContainer
+        conversationStyles.messageContainer,
+        isSent ? conversationStyles.sentContainer : conversationStyles.receivedContainer
       ]}>
         <LinearGradient
           colors={isSent ? ['#004ff6', '#0066ff'] : ['#f6a700', '#ff9500']}
-          style={[styles.messageBubble, isSent ? styles.sentBubble : styles.receivedBubble]}
+          style={[
+            conversationStyles.messageBubble,
+            isSent ? conversationStyles.sentBubble : conversationStyles.receivedBubble
+          ]}
         >
-          <Text style={styles.messageText}>{msg.body}</Text>
-          <Text style={styles.messageTime}>
+          <Text style={conversationStyles.messageText}>{msg.body}</Text>
+          <Text style={conversationStyles.messageTime}>
             {new Date(msg.date).toLocaleTimeString('fr-FR', {
               hour: '2-digit',
               minute: '2-digit',
@@ -105,20 +111,20 @@ export default function ConversationScreen() {
   };
 
   return (
-    <LinearGradient colors={colors.gradients.background} style={styles.container}>
+    <LinearGradient colors={colors.gradients.background} style={conversationStyles.container}>
       <StatusBar barStyle={colors.statusBarStyle} />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <SafeAreaView style={conversationStyles.safeArea} edges={['top']}>
+        <View style={conversationStyles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={conversationStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           
-          <View style={styles.headerContent}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
+          <View style={conversationStyles.headerContent}>
+            <Text style={conversationStyles.headerTitle}>
               {contactName || phoneNumber}
             </Text>
             {contactName && (
-              <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+              <Text style={conversationStyles.headerSubtitle}>
                 {phoneNumber}
               </Text>
             )}
@@ -126,8 +132,8 @@ export default function ConversationScreen() {
         </View>
 
         {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          <View style={conversationStyles.loadingContainer}>
+            <Text style={conversationStyles.loadingText}>
               Chargement...
             </Text>
           </View>
@@ -138,102 +144,12 @@ export default function ConversationScreen() {
             keyExtractor={(item, index) => 
               item.type === 'separator' ? `sep-${index}` : `msg-${item.data.id}`
             }
-            contentContainerStyle={styles.messagesList}
+            contentContainerStyle={conversationStyles.messagesList}
             showsVerticalScrollIndicator={false}
+            inverted
           />
         )}
       </SafeAreaView>
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  messagesList: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  dateSeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  separatorLine: {
-    flex: 1,
-    height: 1,
-  },
-  dateText: {
-    fontSize: 13,
-    fontWeight: '600',
-    paddingHorizontal: 12,
-  },
-  messageContainer: {
-    marginBottom: 12,
-    maxWidth: '80%',
-  },
-  sentContainer: {
-    alignSelf: 'flex-end',
-  },
-  receivedContainer: {
-    alignSelf: 'flex-start',
-  },
-  messageBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  sentBubble: {
-    borderBottomRightRadius: 4,
-  },
-  receivedBubble: {
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  messageTime: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    fontWeight: '400',
-    alignSelf: 'flex-end',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-  },
-});
