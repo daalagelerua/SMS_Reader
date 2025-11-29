@@ -6,7 +6,7 @@ import { StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { getAllSMS, SMS, getAllContacts, findContactName } from '@/utils/smsReader';
+import { getAllSMS, SMS, getAllContacts, findContactName, getSMSByContact } from '@/utils/smsReader';
 import { createConversationStyles } from '@/assets/styles/conversations.styles';
 
 // Type pour un item qui peut être un message ou un séparateur
@@ -29,10 +29,8 @@ export default function ConversationScreen() {
 
   const loadConversation = async () => {
     try {
-      const allSMS = await getAllSMS();
-      const conversationMessages = allSMS.filter(
-        (msg) => msg.address === phoneNumber
-      );
+      // Charger uniquement les SMS de ce contact
+      const conversationMessages = await getSMSByContact(phoneNumber);
       conversationMessages.sort((a, b) => b.date - a.date); // Plus récent en premier
 
       // Créer la liste avec séparateurs de date

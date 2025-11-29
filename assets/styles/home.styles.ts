@@ -47,7 +47,27 @@ export const createHomeStyles = (colors: ColorScheme) => {
       fontWeight: '600',
     },
 
-    // Liste des conversations
+    // Input section
+    inputSection: {
+      paddingHorizontal: 24,
+      paddingBottom: 12,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.backgrounds.input,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    input: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '500',
+      color: colors.text,
+    },
     conversationsContainer: {
       flex: 1,
     },
